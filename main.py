@@ -49,34 +49,36 @@ bottom = pygame.Rect(0, MID_H + (REL_SIZE * 3), WIDTH, REL_SIZE)
 # Initial HUD stats
 score = 0
 life = 3
-wave = 0
 combo = 0
+# waves
+wave = 1
+wave_start = True
+wave_cooldown = 180
+wave_timer = 0
 
 # Variable trigger control
 bullets = []
+bullet_radius = 10
 move_left = False
 shot_timer = 0
 shot_delay = 90  # 1.5 sec at 60fps
-last_shot_time = 0
 # shoot boundary
 l_range = MID_W // 2
 r_range = 3 * MID_W // 2
 
 
 def handle_shoot():
-    global bullets, shot_timer, shot_delay, last_shot_time
+    global bullets, shot_timer, shot_delay
     key = pygame.key.get_pressed()
 
     if (key[pygame.K_a] or key[pygame.K_d]) and shot_timer <= 0:
-        current_time = pygame.time.get_ticks()
         # Checks if the last shot was more than 1.5 seconds ago or if the player pressed the keys quickly
-        if current_time - last_shot_time >= shot_delay or shot_timer == 0:
+        if shot_timer == 0:
             player_position = player_l[1] if key[pygame.K_a] else player_r[1]
             direction_of_bullet = -1 if key[pygame.K_a] else 1
             initial_bul_pos = (player_position[0], player_position[1], direction_of_bullet)
             bullets.append(initial_bul_pos)
             shot_timer = 90
-            last_shot_time = current_time
             shoot_sound_effect.play()
     new_bullets = []
     for bullet in bullets:
@@ -91,6 +93,95 @@ def handle_shoot():
     if shot_timer > 0:
         shot_timer -= 1
 
+
+# Enemies
+enemies = []
+enemies_direction = []
+wave_enemies = 4
+spawned_enemies = 0
+enemy_dimension = (2 * MID_W - REL_SIZE // 2, 2 * MID_H)
+spawn_delay = 120
+spawn_delay_max = 60
+spawn_timer = 0
+
+
+def handle_enemies():
+    global spawn_timer, spawned_enemies, score, combo, enemies, bullets, life, enemies_direction, wave_start
+    # Spawn enemies
+    if spawned_enemies < wave_enemies:
+        if spawn_timer == 0 and spawned_enemies <= wave_enemies:
+            spawn_timer = spawn_delay
+            spawned_enemies += 1
+            side = random.randrange(-1, 2, 2)
+            if side == -1:
+                enemies.append(pygame.Rect((0, MID_H - REL_SIZE), enemy_dimension))
+            else:
+                enemies.append(pygame.Rect((WIDTH - enemy_dimension[0], MID_H - REL_SIZE), enemy_dimension))
+            enemies_direction.append(side)
+    else:
+        wave_start = False
+
+    # Check collision
+    temp_enemies = list(enemies)
+    temp_enemies_direction = list(enemies_direction)
+    temp_bullets = list(bullets)
+    # collision with bullets
+    for bullet in bullets:
+        bullet_rect = pygame.Rect(bullet[0] - bullet_radius, bullet[1] - bullet_radius, bullet_radius, bullet_radius)
+        collision = bullet_rect.collidelist(enemies)
+        if collision != -1:
+            temp_bullets.remove(bullet)
+            temp_enemies.pop(collision)
+            temp_enemies_direction.pop(collision)
+            score += 10 * (1 + combo * 0.1)
+            combo += 1
+    enemies = temp_enemies
+    enemies_direction = temp_enemies_direction
+    print(enemies)
+    bullets = temp_bullets
+    # collision with player
+    for enemy in enemies:
+        if enemy in enemies:
+            print(enemy)
+        index = enemies.index()
+        print(enemy)
+        if direction == 0:
+            if enemy.colliderect(pygame.draw.polygon(screen, WHITE, player_r)):
+                combo = 0
+                life -= 1
+                temp_enemies.remove(enemy)
+                temp_enemies_direction.pop(enemies.index(enemy))
+                enemies = temp_enemies
+                enemies_direction = temp_enemies_direction
+        else:
+            if enemy.colliderect(pygame.draw.polygon(screen, WHITE, player_l)):
+                combo = 0
+                life -= 1
+                temp_enemies.remove(enemy)
+                temp_enemies_direction.pop(enemies.index(enemy))
+                enemies = temp_enemies
+                enemies_direction = temp_enemies_direction
+    # Update enemy
+    for enemy in enemies:
+        enemy[0] += 5 * enemies_direction[enemies.index(enemy)]
+    # Spawn timer
+    spawn_timer -= 1
+
+
+def handle_waves():
+    global wave_start, wave, wave_enemies, spawn_delay, spawned_enemies, wave_timer
+    # Start a new wave if conditions are met
+    if not wave_start:
+        if wave_timer == 0:
+            wave_start = True
+            wave += 1
+            wave_enemies = 2 + wave * 2
+            spawned_enemies = 0
+            if spawn_delay > spawn_delay_max:
+                spawn_delay = 120 - (wave - 1) * 6
+            wave_timer = wave_cooldown
+        else:
+            wave_timer -= 1
 
 def draw_game():
     screen.fill(BLACK)
@@ -128,7 +219,12 @@ def draw_game():
 
         # Draw bullets
         for bullet in bullets:
-            pygame.draw.circle(screen, WHITE, (int(bullet[0]), int(bullet[1])), 10)
+            pygame.draw.circle(screen, WHITE, (int(bullet[0]), int(bullet[1])), bullet_radius)
+
+        # Draw enemies
+        for enemy in enemies:
+            pygame.draw.rect(screen, WHITE, enemy)
+
     else:
         # Title
         title_txt = 'GAME OVER' if life <= 0 else 'TRIANGULAR ASSAULT'
@@ -169,8 +265,9 @@ while running:
 
     if game_start:
         handle_shoot()
-        for bullet in bullets:
-            pygame.draw.circle(screen, WHITE, (int(bullet[0]), int(bullet[1])), 5)
+        if wave_start:
+            handle_enemies()
+        handle_waves()
 
         # Player movement
         if keys[pygame.K_a]:
