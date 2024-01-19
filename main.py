@@ -99,7 +99,7 @@ enemies = []
 enemies_direction = []
 wave_enemies = 4
 spawned_enemies = 0
-enemy_dimension = (2 * MID_W - REL_SIZE // 2, 2 * MID_H)
+enemy_dimension = (2 * REL_SIZE, 2 * REL_SIZE)
 spawn_delay = 120
 spawn_delay_max = 60
 spawn_timer = 0
@@ -113,7 +113,7 @@ def handle_enemies():
             spawn_timer = spawn_delay
             spawned_enemies += 1
             side = random.randrange(-1, 2, 2)
-            if side == -1:
+            if side == 1:
                 enemies.append(pygame.Rect((0, MID_H - REL_SIZE), enemy_dimension))
             else:
                 enemies.append(pygame.Rect((WIDTH - enemy_dimension[0], MID_H - REL_SIZE), enemy_dimension))
@@ -130,6 +130,7 @@ def handle_enemies():
         bullet_rect = pygame.Rect(bullet[0] - bullet_radius, bullet[1] - bullet_radius, bullet_radius, bullet_radius)
         collision = bullet_rect.collidelist(enemies)
         if collision != -1:
+            hit_sound_effect.play()
             temp_bullets.remove(bullet)
             temp_enemies.pop(collision)
             temp_enemies_direction.pop(collision)
@@ -137,28 +138,26 @@ def handle_enemies():
             combo += 1
     enemies = temp_enemies
     enemies_direction = temp_enemies_direction
-    print(enemies)
     bullets = temp_bullets
     # collision with player
     for enemy in enemies:
-        if enemy in enemies:
-            print(enemy)
-        index = enemies.index()
-        print(enemy)
+        index = enemies.index(enemy)
         if direction == 0:
             if enemy.colliderect(pygame.draw.polygon(screen, WHITE, player_r)):
+                damage_sound_effect.play()
                 combo = 0
                 life -= 1
                 temp_enemies.remove(enemy)
-                temp_enemies_direction.pop(enemies.index(enemy))
+                temp_enemies_direction.pop(index)
                 enemies = temp_enemies
                 enemies_direction = temp_enemies_direction
         else:
             if enemy.colliderect(pygame.draw.polygon(screen, WHITE, player_l)):
+                damage_sound_effect.play()
                 combo = 0
                 life -= 1
                 temp_enemies.remove(enemy)
-                temp_enemies_direction.pop(enemies.index(enemy))
+                temp_enemies_direction.pop(index)
                 enemies = temp_enemies
                 enemies_direction = temp_enemies_direction
     # Update enemy
@@ -265,9 +264,9 @@ while running:
 
     if game_start:
         handle_shoot()
+        handle_waves()
         if wave_start:
             handle_enemies()
-        handle_waves()
 
         # Player movement
         if keys[pygame.K_a]:
