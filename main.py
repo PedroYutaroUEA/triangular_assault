@@ -24,9 +24,10 @@ screen_font = pygame.font.SysFont('Arial', 30)
 screen_font_bold = pygame.font.SysFont('Arial Bold', 120)
 
 # Sound effects
-bounce_sound_effect = pygame.mixer.Sound('assets/bounce.wav')
-scoring_sound_effect = pygame.mixer.Sound('assets/scoring-sound.wav')
-death_sound_effect = pygame.mixer.Sound('assets/explode.ogg')
+hit_sound_effect = pygame.mixer.Sound('assets/bounce.wav')
+wave_sound_effect = pygame.mixer.Sound('assets/scoring-sound.wav')
+damage_sound_effect = pygame.mixer.Sound('assets/explode.ogg')
+shoot_sound_effect = pygame.mixer.Sound('assets/s2297_from_gd.ogg')
 
 # Player
 direction = 0
@@ -55,43 +56,35 @@ combo = 0
 bullets = []
 move_left = False
 shot_timer = 0
-shot_delay = 90  # 1.5 segundos a 60 FPS
+shot_delay = 90  # 1.5 sec at 60fps
 last_shot_time = 0
+# shoot boundary
+l_range = MID_W // 2
+r_range = 3 * MID_W // 2
 
 
-def handle_shooting():
-    global bullets, direction, score, life, combo, shot_timer, shot_delay, last_shot_time
+def handle_shoot():
+    global bullets, shot_timer, shot_delay, last_shot_time
+    key = pygame.key.get_pressed()
 
-    keys = pygame.key.get_pressed()
-
-    if (keys[pygame.K_a] or keys[pygame.K_d]) and shot_timer <= 0:
+    if (key[pygame.K_a] or key[pygame.K_d]) and shot_timer <= 0:
         current_time = pygame.time.get_ticks()
-
-        # Verifica se o último disparo foi há mais de 1.5 segundos ou se o jogador pressionou rapidamente as teclas
+        # Checks if the last shot was more than 1.5 seconds ago or if the player pressed the keys quickly
         if current_time - last_shot_time >= shot_delay or shot_timer == 0:
-            player_position = player_l[1] if keys[pygame.K_a] else player_r[1]
-            direction_of_bullet = -1 if keys[pygame.K_a] else 1
-            bullets.append((player_position[0], player_position[1], direction_of_bullet))
-            scoring_sound_effect.play()
+            player_position = player_l[1] if key[pygame.K_a] else player_r[1]
+            direction_of_bullet = -1 if key[pygame.K_a] else 1
+            initial_bul_pos = (player_position[0], player_position[1], direction_of_bullet)
+            bullets.append(initial_bul_pos)
             shot_timer = 90
             last_shot_time = current_time
+            shoot_sound_effect.play()
     new_bullets = []
     for bullet in bullets:
         bx, by, dir = bullet
         bx += 5 * dir
-        by = max(MID_H - (REL_SIZE * 4), min(MID_H + (REL_SIZE * 3), by))
-
-        # Check for collision with the top and bottom dashed lines
-        top_line_y = MID_H - (REL_SIZE * 4)
-        bottom_line_y = MID_H + (REL_SIZE * 3)
-        if top_line_y <= by <= bottom_line_y:
-            # Check for collision with the left dashed line
-            left_line_x = MID_W // 2
-            # Check for collision with the right dashed line
-            right_line_x = MID_W + MID_W // 2
-            if left_line_x <= bx <= right_line_x:
-                new_bullets.append((bx, by, dir))
-
+        # checks collision with the left and right dashed line
+        if l_range <= bx <= r_range:
+            new_bullets.append((bx, by, dir))
     # Update the bullet
     bullets = new_bullets
     # Time
@@ -135,7 +128,7 @@ def draw_game():
 
         # Draw bullets
         for bullet in bullets:
-            pygame.draw.circle(screen, WHITE, (int(bullet[0]), int(bullet[1])), 5)
+            pygame.draw.circle(screen, WHITE, (int(bullet[0]), int(bullet[1])), 10)
     else:
         # Title
         title_txt = 'GAME OVER' if life <= 0 else 'TRIANGULAR ASSAULT'
@@ -175,7 +168,7 @@ while running:
         direction = desired_direction
 
     if game_start:
-        handle_shooting()
+        handle_shoot()
         for bullet in bullets:
             pygame.draw.circle(screen, WHITE, (int(bullet[0]), int(bullet[1])), 5)
 
@@ -190,7 +183,7 @@ while running:
         # Player death
         if life <= 0:
             game_start = False
-            death_sound_effect.play()
+            damage_sound_effect.play()
     # Draw
     draw_game()
 
