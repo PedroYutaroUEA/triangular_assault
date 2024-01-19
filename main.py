@@ -58,60 +58,6 @@ shot_timer = 0
 shot_delay = 90  # 1.5 segundos a 60 FPS
 last_shot_time = 0
 
-def update_screen():
-    pygame.display.flip()
-    pygame.time.Clock().tick(60)
-
-def draw_hud(n_score, n_life, n_wave, n_combo):
-    score_text = hud_font.render(f'SCORE: {n_score}', True, WHITE, BLACK)
-    life_text = hud_font.render(f'LIFE: {n_life}', True, WHITE, BLACK)
-    wave_text = hud_font.render(f'WAVE: {n_wave}', True, WHITE, BLACK)
-    combo_text = hud_font.render(f'COMBO: {n_combo}', True, WHITE, BLACK)
-    screen.blit(score_text, (20, 10))
-    screen.blit(life_text, (WIDTH - 200, 10))
-    screen.blit(combo_text, (20, 50))
-    screen.blit(wave_text, (MID_W - 80, 10))
-
-def draw_static_screen(li):
-    # Covers game drawing
-    screen.fill(BLACK, (0, MID_H - (REL_SIZE * 4), WIDTH, MID_H))
-    # Title
-    title_txt = 'GAME OVER' if li <= 0 else 'TRIANGULAR ASSAULT'
-    title = screen_font_bold.render(title_txt, True, WHITE, BLACK)
-    title_w = title.get_width()
-    title_h = title.get_height()
-
-    # Subtitle
-    subtitle_txt = "To play again press 'space'" if li <= 0 else "To play press 'space'"
-    subtitle = screen_font.render(subtitle_txt, True, WHITE, BLACK)
-    subtitle_w = subtitle.get_width()
-
-    # Draw title and subtitle
-    screen.blit(title, (MID_W - title_w // 2, MID_H - title_h // 2))
-    screen.blit(subtitle, (MID_W - subtitle_w // 2, MID_H + title_h // 2))
-
-def draw_lines():
-    start_y = MID_H - (REL_SIZE * 4)
-    end_y = MID_H + (REL_SIZE * 3)
-    dot_size = 10
-    dot_space = 5
-    y = start_y
-    while y < end_y:
-        pygame.draw.line(screen, WHITE, (MID_W // 2, y), (MID_W // 2, y + dot_size))
-        pygame.draw.line(screen, WHITE, (MID_W + MID_W // 2, y), (MID_W + MID_W // 2, y + dot_size))
-        y += dot_size + dot_space
-
-def draw_game():
-    screen.fill(BLACK)
-    # Draw scenario
-    pygame.draw.rect(screen, WHITE, topper)
-    draw_lines()
-    pygame.draw.rect(screen, WHITE, bottom)
-    # Draw player
-    if direction == 0:
-        pygame.draw.polygon(screen, WHITE, player_r)
-    else:
-        pygame.draw.polygon(screen, WHITE, player_l)
 
 def handle_shooting():
     global bullets, direction, score, life, combo, shot_timer, shot_delay, last_shot_time
@@ -152,6 +98,61 @@ def handle_shooting():
     if shot_timer > 0:
         shot_timer -= 1
 
+
+def draw_game():
+    screen.fill(BLACK)
+    # Draw hud
+    score_text = hud_font.render(f'SCORE: {score}', True, WHITE, BLACK)
+    life_text = hud_font.render(f'LIFE: {life}', True, WHITE, BLACK)
+    wave_text = hud_font.render(f'WAVE: {wave}', True, WHITE, BLACK)
+    combo_text = hud_font.render(f'COMBO: {combo}', True, WHITE, BLACK)
+    screen.blit(score_text, (20, 10))
+    screen.blit(life_text, (WIDTH - 200, 10))
+    screen.blit(combo_text, (20, 50))
+    screen.blit(wave_text, (MID_W - 80, 10))
+
+    if game_start:
+        # Draw scenario
+        pygame.draw.rect(screen, WHITE, topper)
+        pygame.draw.rect(screen, WHITE, bottom)
+
+        # Draw dotted lines
+        start_y = MID_H - (REL_SIZE * 4)
+        end_y = MID_H + (REL_SIZE * 3)
+        dot_size = 10
+        dot_space = 5
+        y = start_y
+        while y < end_y:
+            pygame.draw.line(screen, WHITE, (MID_W // 2, y), (MID_W // 2, y + dot_size))
+            pygame.draw.line(screen, WHITE, (3 * MID_W // 2, y), (3 * MID_W // 2, y + dot_size))
+            y += dot_size + dot_space
+
+        # Draw player
+        if direction == 0:
+            pygame.draw.polygon(screen, WHITE, player_r)
+        else:
+            pygame.draw.polygon(screen, WHITE, player_l)
+
+        # Draw bullets
+        for bullet in bullets:
+            pygame.draw.circle(screen, WHITE, (int(bullet[0]), int(bullet[1])), 5)
+    else:
+        # Title
+        title_txt = 'GAME OVER' if life <= 0 else 'TRIANGULAR ASSAULT'
+        title = screen_font_bold.render(title_txt, True, WHITE, BLACK)
+        title_w = title.get_width()
+        title_h = title.get_height()
+
+        # Subtitle
+        subtitle_txt = "To play again press 'space'" if life <= 0 else "To play press 'space'"
+        subtitle = screen_font.render(subtitle_txt, True, WHITE, BLACK)
+        subtitle_w = subtitle.get_width()
+
+        # Draw title and subtitle
+        screen.blit(title, (MID_W - title_w // 2, MID_H - title_h // 2))
+        screen.blit(subtitle, (MID_W - subtitle_w // 2, MID_H + title_h // 2))
+
+
 # Game stats
 running = True
 game_start = False
@@ -163,15 +164,17 @@ while running:
         if event.type == pygame.QUIT:
             running = False
         elif keys[pygame.K_SPACE]:
-            game_start = True
+            if not game_start:
+                game_start = True
+                score = 0
+                combo = 0
+                wave = 1
+                life = 3
 
     if desired_direction is not None:
         direction = desired_direction
 
     if game_start:
-        draw_game()
-        wave = 1
-        draw_hud(score, life, wave, combo)
         handle_shooting()
         for bullet in bullets:
             pygame.draw.circle(screen, WHITE, (int(bullet[0]), int(bullet[1])), 5)
@@ -188,20 +191,12 @@ while running:
         if life <= 0:
             game_start = False
             death_sound_effect.play()
+    # Draw
+    draw_game()
 
-    elif life <= 0:
-        draw_static_screen(life)
-        if keys[pygame.K_SPACE]:
-            # Reset stats
-            score = combo = 0
-            wave = 1
-            life = 3
-            game_start = True
-    else:
-        # Draw initial stats
-        draw_static_screen(life)
-        draw_hud(score, life, wave, combo)
-    update_screen()
+    # update screen
+    pygame.display.flip()
+    pygame.time.Clock().tick(60)
 
 pygame.quit()
 sys.exit()
